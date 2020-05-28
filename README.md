@@ -2,6 +2,8 @@
 
 The chillest IRC library.
 
+![firn logo](https://kelp.ml/u/axdv.png)
+
 # NOTICE
 This library is still in heavy development, things are very likely to change in the future.
 
@@ -13,7 +15,7 @@ Firn relies on an object-based event stream. Any important messages coming from 
 are parsed and sent through this event stream. This stream can have any number of listeners.
 
 ## Basic example
-```
+```dart
 import 'package:firn/FirnClient.dart';
 import 'package:firn/events/MessageRecievedEvent.dart';
 
