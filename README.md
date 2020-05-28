@@ -2,7 +2,7 @@
 
 The chillest IRC library.
 
-![firn logo](https://kelp.ml/u/axdv.png)
+![firn logo](https://kelp.ml/u/axdx.png)
 
 # NOTICE
 This library is still in heavy development, things are very likely to change in the future.
