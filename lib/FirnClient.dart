@@ -4,6 +4,7 @@ import 'dart:io';
 import 'dart:convert';
 import 'dart:async';
 import 'package:firn/datatypes/Channel.dart';
+import 'package:firn/datatypes/IRCPrefix.dart';
 import 'package:firn/events/FirnEvent.dart';
 import 'package:firn/events/ChannelEvent.dart';
 import 'package:firn/events/NickNameChangedEvent.dart';
@@ -94,9 +95,18 @@ class FirnClient {
 
   void sendPrivMsg(String target, String input) {
     if (input.length > 512) {
-
+      throw Exception('IRCClient error: input longer than 512 chars');
     }
     sendLine('PRIVMSG $target :$input');
+    eventController.add(MessageRecievedEvent(
+      eventName: 'messageSent',
+      message: Message(
+        parameters: [target, input],
+        prefix: IRCPrefix(
+          nick: nickname,
+        ),
+      ),
+    ));
   }
 
   void sendNickAndUser() {

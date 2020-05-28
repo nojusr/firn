@@ -22,6 +22,7 @@ class Message {
   Message({
     this.line,
     this.command,
+    this.prefix,
     this.parameters,
     this.tags
   });
