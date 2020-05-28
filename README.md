@@ -1,8 +1,6 @@
-# firn
-
-The chillest IRC library.
-
 ![firn logo](https://kelp.ml/u/axdx.png)
+# firn
+The chillest IRC library.
 
 # NOTICE
 This library is still in heavy development, things are very likely to change in the future.
