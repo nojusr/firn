@@ -11,7 +11,7 @@ import 'package:firn/events/NickNameChangedEvent.dart';
 import 'package:firn/events/ServerConnectEvent.dart';
 import 'package:firn/events/MessageRecievedEvent.dart';
 import 'package:firn/parser/IRCMessageParser.dart';
-import 'package:firn/datatypes/IRCMessage.dart';
+import 'package:firn/datatypes/Message.dart';
 import 'package:firn/datatypes/FirnConfig.dart';
 
 

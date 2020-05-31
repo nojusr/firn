@@ -1,7 +1,9 @@
 import 'package:firn/events/FirnEvent.dart';
-import 'package:firn/datatypes/IRCMessage.dart';
+import 'package:firn/datatypes/Message.dart';
 import 'package:firn/datatypes/FirnConfig.dart';
 
+/// event used to indicate whenever a server
+/// connection has recieved a message
 class MessageRecievedEvent extends FirnEvent {
   MessageRecievedEvent({
     this.eventName,
@@ -10,6 +12,5 @@ class MessageRecievedEvent extends FirnEvent {
   }): super(eventName: eventName, config: config);
 
   String eventName;
-  int timestamp;
   Message message;
 }

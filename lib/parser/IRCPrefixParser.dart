@@ -1,6 +1,9 @@
 import 'package:firn/datatypes/IRCPrefix.dart';
 
+/// static class used to parse IRC prefixes
 class IRCPrefixParser {
+
+  /// the main parsing method
   static IRCPrefix parsePrefix(String input) {
     if (input.length == null || input.length < 0) {
       return null;

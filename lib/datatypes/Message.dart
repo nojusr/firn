@@ -1,7 +1,8 @@
 import 'package:firn/datatypes/IRCPrefix.dart';
 
 
-/// IRC Message
+/// Data class to hold all required data relating to an
+/// IRC message
 class Message {
   /// Original Line
   String line;

@@ -1,9 +1,11 @@
 import 'package:firn/parser/IRCPrefixParser.dart';
 import 'package:firn/datatypes/IRCPrefix.dart';
-import 'package:firn/datatypes/IRCMessage.dart';
+import 'package:firn/datatypes/Message.dart';
 
+/// static class used to parse incoming IRC messages
 class IRCMessageParser {
 
+  /// the main parsing method
   static Message parseRawMessage(String input) {
 
     Message output = new Message();
