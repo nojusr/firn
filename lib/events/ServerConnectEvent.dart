@@ -1,3 +1,4 @@
+import 'package:firn/datatypes/FirnConfig.dart';
 import 'package:firn/events/FirnEvent.dart';
 
 class ServerConnectedEvent extends FirnEvent {
@@ -6,12 +7,11 @@ class ServerConnectedEvent extends FirnEvent {
     this.eventName,
     this.serverName,
     this.serverPort,
-  });
+    FirnConfig config,
+  }): super(eventName: eventName, config: config);
 
 
   String eventName;
-  int timestamp;
-
   String serverName;
   int serverPort;
 

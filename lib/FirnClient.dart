@@ -12,133 +12,156 @@ import 'package:firn/events/ServerConnectEvent.dart';
 import 'package:firn/events/MessageRecievedEvent.dart';
 import 'package:firn/parser/IRCMessageParser.dart';
 import 'package:firn/datatypes/IRCMessage.dart';
+import 'package:firn/datatypes/FirnConfig.dart';
+
+
 
 class FirnClient {
 
+  List<FirnConfig> configs = List<FirnConfig>();
+
+  StreamController<FirnEvent> globalEventController = StreamController<FirnEvent>.broadcast();
+
+
   bool printDebug = false;
 
-  /// client variables
-  String realname;
-  String nickname;
-  String version = "Firn IRC Library v0.0.1 (client version unset)";
+  void addConfig(FirnConfig conf) {
+    configs.add(conf);
+    if (conf.autoConnect == true) {
+      connectToServer(conf);
+    }
+  }
 
+  void removeConfig(FirnConfig conf) {
 
-  /// server variables
-  String server;
-  int port;
+    for (StreamSubscription sub in conf.subscribers) {
+      sub.cancel();
+    }
 
-  /// channel variables
-  bool canJoinChannels = false;
-  List<Channel> joinedChannels = List<Channel>();
+    disconnectFromServer(conf);
+    configs.remove(conf);
+  }
 
+  void getConfig(FirnConfig conf) {
+    configs.firstWhere((element){
+      if (element == conf) {
+        return true;
+      }
+      return false;
+    });
+  }
 
-  /// main event controller
-  StreamController<FirnEvent> eventController = StreamController<FirnEvent>.broadcast();
+  void connectToServers() {
 
-  /// main socket for talking
-  Socket serverConnectionSocket;
+    for (FirnConfig conf in configs) {
+      connectToServer(conf);
+    }
+  }
 
-  /// bool to indicate connection status
-  bool hasConnectedToServer = false;
-
-
-  void connectToServer() {
-
-    if (server == null || server == "") {
+  void connectToServer(FirnConfig conf) {
+    if (conf.server == null || conf.server == "") {
       throw Exception('IRCClient error: server not set');
     }
 
-    Socket.connect(server, port).then((socket){
-      print('conneted to $server, port $port');
-      hasConnectedToServer = true;
-      serverConnectionSocket = socket;
+    Socket.connect(conf.server, conf.port).then((socket) {
+      print('conneted to ${conf.server}, port ${conf.port}');
+      conf.hasConnectedToServer = true;
+      conf.serverConnectionSocket = socket;
 
 
       utf8.decoder
-          .bind(serverConnectionSocket)
+          .bind(conf.serverConnectionSocket)
           .transform(LineSplitter())
           .listen((event) {
-        rawMessageHandler(event);
+        rawMessageHandler(conf, event);
       });
 
-      sendNickAndUser();
+      sendNickAndUser(conf);
 
-      eventController.add(ServerConnectedEvent(
+      StreamSubscription sub = conf.eventController.stream.listen((event) {
+        globalEventController.add(event);
+      });
+
+      conf.subscribers.add(sub);
+
+      conf.eventController.add(ServerConnectedEvent(
         eventName: 'serverConnected',
-        serverName: server,
-        serverPort: port,
+        serverName: conf.server,
+        serverPort: conf.port,
+        config: conf,
       ));
 
     });
   }
 
-  void disconnectFromServer() {
-    if (server == null || server == "") {
+  void disconnectFromServer(FirnConfig conf) {
+    if (conf.server == null || conf.server == "") {
       throw Exception('IRCClient error: server not set');
     }
 
-    if (hasConnectedToServer == false || serverConnectionSocket == null){
+    if (conf.hasConnectedToServer == false || conf.serverConnectionSocket == null){
       throw Exception('IRCClient error: tried to dc when not connected');
     }
 
-    sendLine('QUIT');
-    hasConnectedToServer = false;
-    serverConnectionSocket.destroy();
+    sendLine(conf, 'QUIT');
+    conf.hasConnectedToServer = false;
+    conf.serverConnectionSocket.destroy();
   }
 
-  void sendLine(String input) {
+  void sendLine(FirnConfig conf, String input) {
     if (printDebug) {
       print('sending raw message: $input');
     }
-    serverConnectionSocket.write('$input \r\n');
+    conf.serverConnectionSocket.write('$input \r\n');
   }
 
-  void sendPrivMsg(String target, String input) {
+  void sendPrivMsg(FirnConfig conf, String target, String input) {
     if (input.length > 512) {
       throw Exception('IRCClient error: input longer than 512 chars');
     }
-    sendLine('PRIVMSG $target :$input');
-    eventController.add(MessageRecievedEvent(
+    sendLine(conf, 'PRIVMSG $target :$input');
+    conf.eventController.add(MessageRecievedEvent(
       eventName: 'messageSent',
       message: Message(
         parameters: [target, input],
         prefix: IRCPrefix(
-          nick: nickname,
+          nick: conf.nickname,
         ),
       ),
+      config: conf,
     ));
   }
 
-  void sendNickAndUser() {
-    sendLine('NICK $nickname');
-    sendLine('USER $nickname 0 * :$realname');
+  void sendNickAndUser(FirnConfig conf) {
+    sendLine(conf, 'NICK ${conf.nickname}');
+    sendLine(conf, 'USER ${conf.nickname} 0 * :${conf.realname}');
   }
 
-  void sendNick() {
-    sendLine('NICK $nickname');
+  void sendNick(FirnConfig conf) {
+    sendLine(conf, 'NICK ${conf.nickname}');
   }
 
-  void joinChannel(String chName) {
-    sendLine('JOIN $chName');
+  void joinChannel(FirnConfig conf, String chName) {
+    sendLine(conf, 'JOIN $chName');
   }
 
-  void partChannel(String chName) {
-    sendLine('PART $chName');
+  void partChannel(FirnConfig conf, String chName) {
+    sendLine(conf, 'PART $chName');
   }
 
-  void sendCTCPResponse(String target, String prefix, String message, List<String> args) {
+  void sendCTCPResponse(FirnConfig conf, String target, String prefix, String message, List<String> args) {
 
     if (args.length > 0) {
       String arguments = args.join(' ');
-      sendLine('NOTICE $target \u0001$prefix $message $arguments\u0001');
+      sendLine(conf, 'NOTICE $target \u0001$prefix $message $arguments\u0001');
     } else {
-      sendLine('NOTICE $target \u0001$prefix $message\u0001');
+      sendLine(conf, 'NOTICE $target \u0001$prefix $message\u0001');
     }
 
   }
 
 
-  void rawMessageHandler(String input) {
+  void rawMessageHandler(FirnConfig conf, String input) {
 
     Message parsedMsg = IRCMessageParser.parseRawMessage(input);
 
@@ -164,11 +187,11 @@ class FirnClient {
     /// everything has to go into one massive switch
     switch (parsedMsg.command) {
       case 'PING':
-        sendLine('PONG :${parsedMsg.parameters[0]}');
+        sendLine(conf, 'PONG :${parsedMsg.parameters[0]}');
         break;
 
       case '001':
-        nickname = parsedMsg.parameters[0];
+        conf.nickname = parsedMsg.parameters[0];
         break;
 
       case '002':
@@ -187,21 +210,22 @@ class FirnClient {
         break;
 
       case '010': /// client told to change servers
-        disconnectFromServer();
-        server = parsedMsg.parameters[0];
-        port = int.parse(parsedMsg.parameters[1]);
-        connectToServer();
+        disconnectFromServer(conf);
+        conf.server = parsedMsg.parameters[0];
+        conf.port = int.parse(parsedMsg.parameters[1]);
+        connectToServer(conf);
         break;
 
       case '433': /// nickname in use
-        nickname = '${nickname}_';
+        conf.nickname = '${conf.nickname}_';
+        sendNick(conf);
         break;
 
       case 'NOTICE':
-
-        eventController.add(new MessageRecievedEvent(
+        conf.eventController.add(new MessageRecievedEvent(
           message: parsedMsg,
           eventName: 'noticeRecieved',
+          config: conf,
         ));
         break;
 
@@ -210,7 +234,7 @@ class FirnClient {
         String _from = parsedMsg.prefix.nick;
         String _to = parsedMsg.parameters[0];
 
-        for (Channel channel in joinedChannels) {
+        for (Channel channel in conf.joinedChannels) {
           List<String> users = channel.connectedUsers;
           int index = users.indexWhere((element) {
             if (element == _from) {
@@ -223,10 +247,11 @@ class FirnClient {
           }
         }
 
-        eventController.add(new NicknameChangedEvent(
+        conf.eventController.add(new NicknameChangedEvent(
           eventName: 'nicknameChanged',
           from: _from,
           to: _to,
+          config: conf,
         ));
         break;
 
@@ -236,19 +261,21 @@ class FirnClient {
         String ctcpChk = parsedMsg.parameters[1];
         if (ctcpChk[0] == '\u0001' && ctcpChk.substring(ctcpChk.length-1) == '\u0001') {
           String parsedNotice = ctcpChk.substring(1, ctcpChk.length-1);
-          CTCPMessageHandler(parsedMsg, parsedNotice);
+          CTCPMessageHandler(conf, parsedMsg, parsedNotice);
           break;
         }
-        eventController.add(new MessageRecievedEvent(
+        conf.eventController.add(new MessageRecievedEvent(
           message: parsedMsg,
           eventName: 'privMsgRecieved',
+          config: conf,
         ));
         break;
 
       case '376': /// motd finish, ready to join
-        canJoinChannels = true;
-        eventController.add(new FirnEvent(
+        conf.canJoinChannels = true;
+        conf.eventController.add(new FirnEvent(
           eventName: 'ready',
+          config: conf,
         ));
         break;
 
@@ -256,10 +283,11 @@ class FirnClient {
         Channel connChannel = new Channel();
         connChannel.name = parsedMsg.parameters[1];
         connChannel.topic = "";
-        joinedChannels.add(connChannel);
-        eventController.add(ChannelEvent(
+        conf.joinedChannels.add(connChannel);
+        conf.eventController.add(ChannelEvent(
           eventName: 'channelJoined',
           channel: connChannel,
+          config: conf,
         ));
         break;
 
@@ -267,10 +295,11 @@ class FirnClient {
         Channel connChannel = new Channel();
         connChannel.name = parsedMsg.parameters[1];
         connChannel.topic = parsedMsg.parameters[2];
-        joinedChannels.add(connChannel);
-        eventController.add(ChannelEvent(
+        conf.joinedChannels.add(connChannel);
+        conf.eventController.add(ChannelEvent(
           eventName: 'topicChanged',
           channel: connChannel,
+          config: conf,
         ));
         break;
 
@@ -280,7 +309,7 @@ class FirnClient {
 
         String channelName = parsedMsg.parameters[2];
 
-        Channel channel = joinedChannels.firstWhere((element) {
+        Channel channel = conf.joinedChannels.firstWhere((element) {
           if (element.name == channelName) {
             return true;
           }
@@ -297,9 +326,10 @@ class FirnClient {
           channel.connectedUsers.addAll(names);
         }
 
-        eventController.add(ChannelEvent(
+        conf.eventController.add(ChannelEvent(
           eventName: 'channelNamesRecieved',
           channel: channel,
+          config: conf,
         ));
 
         break;
@@ -307,7 +337,7 @@ class FirnClient {
   }
 
   /// function to handle CTCP messages
-  void CTCPMessageHandler(Message parsedMsg, String parsedNotice) {
+  void CTCPMessageHandler(FirnConfig conf, Message parsedMsg, String parsedNotice) {
 
 
     // parse and get command
@@ -328,8 +358,6 @@ class FirnClient {
       case 'PING':
 
         int timeGiven = int.parse(arguments[0]);
-
-
         int currentTime = DateTime.now().millisecondsSinceEpoch;
 
         print(currentTime);
@@ -337,10 +365,10 @@ class FirnClient {
 
         int diff = currentTime-(timeGiven*1000);
 
-        sendCTCPResponse(parsedMsg.prefix.nick, command, 'took $diff ms to respond', []);
+        sendCTCPResponse(conf, parsedMsg.prefix.nick, command, 'took $diff ms to respond', []);
         break;
       case 'VERSION':
-        sendCTCPResponse(parsedMsg.prefix.nick, command, version, []);
+        sendCTCPResponse(conf, parsedMsg.prefix.nick, command, conf.version, []);
         break;
 
     }
