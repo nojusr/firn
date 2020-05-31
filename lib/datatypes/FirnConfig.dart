@@ -9,7 +9,7 @@ class FirnConfig {
   /// client variables
   String realname;
   String nickname;
-  String version = "Firn IRC Library v0.0.1 (client version unset)";
+  String version = "Firn IRC Library v0.0.2 (client version unset)";
 
 
   /// server variables
