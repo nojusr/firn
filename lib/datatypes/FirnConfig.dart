@@ -22,6 +22,9 @@ class FirnConfig {
   /// the server's URL
   String server;
 
+  /// the client-side nickname for the server
+  String serverNick;
+
   /// the server port, defaults to 6667
   int port = 6667;
 
