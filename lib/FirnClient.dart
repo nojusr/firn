@@ -78,11 +78,24 @@ class FirnClient {
 
       sendNickAndUser(conf);
 
-      StreamSubscription sub = conf.eventController.stream.listen((event) {
+      // subscribe to global event ctrl
+      StreamSubscription globalSub = conf.eventController.stream.listen((event) {
         globalEventController.add(event);
       });
 
-      conf.subscribers.add(sub);
+      conf.subscribers.add(globalSub);
+
+
+      if (conf.shouldBufferEvents == true) {
+        StreamSubscription bufferSub = conf.eventController.stream.listen((event) {
+          if (conf.localEventBuffer.length > conf.localEventBufferSize) {
+            conf.localEventBuffer.removeLast();
+          }
+          conf.localEventBuffer.insert(0, event);
+        });
+        conf.subscribers.add(bufferSub);
+      }
+
 
       conf.eventController.add(ServerConnectedEvent(
         eventName: 'serverConnected',

@@ -13,4 +13,7 @@ class FirnEvent {
 
   /// the [FirnConfig] of the event
   FirnConfig config;
+
+  /// the timestamp of when the event happened
+  DateTime timestamp = DateTime.now();
 }

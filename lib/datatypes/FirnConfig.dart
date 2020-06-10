@@ -38,6 +38,17 @@ class FirnConfig {
   /// stores any channels that are currently joined
   List<Channel> joinedChannels = List<Channel>();
 
+  /// A Bool to set if FirnClient should put any events that
+  /// happened into [localEventBuffer], defaults to false
+  bool shouldBufferEvents = false;
+
+  /// The maximum size of [localEventbuffer], defaults to 150
+  int localEventBufferSize = 150;
+
+  /// A list of [FirnEvent] that stores any events that happened
+  /// to it's [FirnConfig], depending on if [shouldBufferEvents] is true
+  List<FirnEvent> localEventBuffer = List<FirnEvent>();
+
 
   /// The config's event controller
   StreamController<FirnEvent> eventController = StreamController<FirnEvent>.broadcast();

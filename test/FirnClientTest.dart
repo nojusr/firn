@@ -24,7 +24,7 @@ void main() {
     TestClient.printDebug = true;
 
 
-
+    TestConf.shouldBufferEvents = true;
     TestConf.server = testServer;
     TestConf.nickname = testNickname;
     TestConf.realname = testRealname;
@@ -58,9 +58,13 @@ void main() {
     });
 
     TestClient.globalEventController.stream.listen((event) {
+      print("testconf2 events recieved: ${event.config.localEventBuffer.length}");
+      print("time of event: ${event.timestamp.toIso8601String()}");
+    });
+
+    TestClient.globalEventController.stream.listen((event) {
       if (event.eventName == "privMsgRecieved") {
         MessageRecievedEvent msg = event;
-
         String target = msg.message.parameters[0];
         String message = msg.message.parameters[1];
         if (message.startsWith(event.config.nickname)) {
