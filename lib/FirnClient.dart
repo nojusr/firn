@@ -181,11 +181,24 @@ class FirnClient {
     if (printDebug == true) {
       String dbgOutput = 'IRC Message: ${parsedMsg.line}';
       dbgOutput += '\nCommand: ${parsedMsg.command}';
-      dbgOutput += '\nPrefix: ${parsedMsg.prefix}';
+      dbgOutput += '\nPrefix:';
+
+      if (parsedMsg.prefix != null) {
+        if (parsedMsg.prefix.host != null) {
+          dbgOutput += '|h: ${parsedMsg.prefix.host}';
+        }
+        if (parsedMsg.prefix.nick != null) {
+          dbgOutput += '|n: ${parsedMsg.prefix.nick}';
+        }
+        if (parsedMsg.prefix.user != null) {
+          dbgOutput += '|u: ${parsedMsg.prefix.user}';
+        }
+      }
       dbgOutput += '\nParameters: ';
       for (int i = 0; i < parsedMsg.parameters.length; i++) {
         dbgOutput += '${parsedMsg.parameters[i]} ||';
       }
+
       dbgOutput += '\nTags:';
       parsedMsg.tags.forEach((key, value) {
         dbgOutput += '$key=$value;';
@@ -219,7 +232,7 @@ class FirnClient {
       case '253':
       case '396':
       case '042':
-        ///skip useless stuff
+        /// skip useless stuff
         break;
 
       case '010': /// client told to change servers
