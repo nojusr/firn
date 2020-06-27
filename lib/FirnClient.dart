@@ -22,7 +22,6 @@ class FirnClient {
 
   StreamController<FirnEvent> globalEventController = StreamController<FirnEvent>.broadcast();
 
-
   bool printDebug = false;
 
   void addConfig(FirnConfig conf) {
@@ -37,7 +36,6 @@ class FirnClient {
     for (StreamSubscription sub in conf.subscribers) {
       sub.cancel();
     }
-
     disconnectFromServer(conf);
     configs.remove(conf);
   }
@@ -49,6 +47,22 @@ class FirnClient {
       }
       return false;
     });
+  }
+
+  String getUserNameLevel(Channel channel, String nickname) {
+    for (String user in channel.connectedUsers) {
+      if (['@', '~', '%', '+'].contains(user[0])) {
+        String strippedUser = user.substring(1);
+        if (strippedUser == nickname) {
+          return user[0];
+        }
+      } else {
+        if (nickname == user) {
+          return "";
+        }
+      }
+
+    }
   }
 
   void connectToServers() {
@@ -316,7 +330,7 @@ class FirnClient {
           config: conf,
         ));
         break;
-
+      
       case '332': /// channel and topic recieved
         Channel connChannel = new Channel();
         connChannel.name = parsedMsg.parameters[1];
@@ -325,6 +339,74 @@ class FirnClient {
         conf.eventController.add(ChannelEvent(
           eventName: 'topicChanged',
           channel: connChannel,
+          config: conf,
+        ));
+        break;
+
+      case 'JOIN':
+        String channelName = parsedMsg.parameters[0];
+        Channel channel = conf.joinedChannels.firstWhere((element) {
+          if (element.name == channelName) {
+            return true;
+          }
+          return false;
+        });
+
+        if (channel.connectedUsers == null) {
+          channel.connectedUsers = List<String>();
+        }
+
+        if (parsedMsg.prefix.nick != conf.nickname) {
+          channel.connectedUsers.add(parsedMsg.prefix.nick);
+        }
+
+
+        conf.eventController.add(ChannelEvent(
+          eventName: 'userJoined',
+          channel: channel,
+          parameters: [parsedMsg.prefix.nick],
+          config: conf,
+        ));
+        break;
+
+      case 'PART':
+        String channelName = parsedMsg.parameters[0];
+        Channel channel = conf.joinedChannels.firstWhere((element) {
+          if (element.name == channelName) {
+            return true;
+          }
+          return false;
+        });
+        
+        if (channel.connectedUsers == null) {
+          break;
+        }
+
+        String level = getUserNameLevel(channel, parsedMsg.prefix.nick);
+
+        channel.connectedUsers.remove("${level}${parsedMsg.prefix.nick}");
+
+        conf.eventController.add(ChannelEvent(
+          eventName: 'userLeft',
+          channel: channel,
+          parameters: [parsedMsg.prefix.nick],
+          config: conf,
+        ));
+        break;
+
+      case 'QUIT':
+        for (Channel channel in conf.joinedChannels) {
+
+          String level = getUserNameLevel(channel, parsedMsg.prefix.nick);
+          String fullname = "${level}${parsedMsg.prefix.nick}";
+
+          if (channel.connectedUsers.contains(fullname)) {
+            channel.connectedUsers.remove(fullname);
+          }
+        }
+        conf.eventController.add(ChannelEvent(
+          eventName: 'userQuit',
+          parameters: [parsedMsg.prefix.nick],
           config: conf,
         ));
         break;

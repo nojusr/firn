@@ -39,10 +39,10 @@ class FirnConfig {
   List<Channel> joinedChannels = List<Channel>();
 
   /// A Bool to set if FirnClient should put any events that
-  /// happened into [localEventBuffer], defaults to false
+  /// happened into [localEventBuffer], defaults to 'false'
   bool shouldBufferEvents = false;
 
-  /// The maximum size of [localEventbuffer], defaults to 150
+  /// The maximum size of [localEventBuffer], defaults to '150'
   int localEventBufferSize = 150;
 
   /// A list of [FirnEvent] that stores any events that happened
