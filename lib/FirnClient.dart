@@ -320,22 +320,59 @@ class FirnClient {
         break;
 
       case '331': /// joined a channel without a topic
-        Channel connChannel = new Channel();
-        connChannel.name = parsedMsg.parameters[1];
+
+        Channel connChannel;
+
+        connChannel = conf.joinedChannels.firstWhere((element) {
+          if (element.name == parsedMsg.parameters[1]) {
+            return true;
+          }
+          return false;
+        }, orElse: () {
+          conf.joinedChannels.add(Channel(
+            name: parsedMsg.parameters[1],
+          ));
+
+          connChannel = conf.joinedChannels.firstWhere((element){
+            if (element.name == parsedMsg.parameters[1]) {
+              return true;
+            }
+            return false;
+          });
+
+        });
+
+
         connChannel.topic = "";
-        conf.joinedChannels.add(connChannel);
-        conf.eventController.add(ChannelEvent(
-          eventName: 'channelJoined',
-          channel: connChannel,
-          config: conf,
-        ));
+
         break;
       
       case '332': /// channel and topic recieved
-        Channel connChannel = new Channel();
-        connChannel.name = parsedMsg.parameters[1];
+
+        Channel connChannel;
+
+        connChannel = conf.joinedChannels.firstWhere((element) {
+          if (element.name == parsedMsg.parameters[1]) {
+            return true;
+          }
+          return false;
+        }, orElse: () {
+          conf.joinedChannels.add(Channel(
+            name: parsedMsg.parameters[1],
+            topic: "no topic set",
+          ));
+
+          connChannel = conf.joinedChannels.firstWhere((element){
+            if (element.name == parsedMsg.parameters[1]) {
+              return true;
+            }
+            return false;
+          });
+
+        });
+
         connChannel.topic = parsedMsg.parameters[2];
-        conf.joinedChannels.add(connChannel);
+
         conf.eventController.add(ChannelEvent(
           eventName: 'topicChanged',
           channel: connChannel,
@@ -345,12 +382,29 @@ class FirnClient {
 
       case 'JOIN':
         String channelName = parsedMsg.parameters[0];
+
         Channel channel = conf.joinedChannels.firstWhere((element) {
           if (element.name == channelName) {
             return true;
           }
           return false;
+        }, orElse: () {
+          conf.joinedChannels.add(Channel(
+            name: channelName,
+            topic: "no topic set",
+          ));
+
         });
+
+        if (conf.nickname == parsedMsg.prefix.nick) {
+          conf.eventController.add(ChannelEvent(
+            eventName: 'channelJoined',
+            channel: channel,
+            config: conf,
+          ));
+
+        }
+
 
         if (channel.connectedUsers == null) {
           channel.connectedUsers = List<String>();
