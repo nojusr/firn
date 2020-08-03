@@ -425,7 +425,7 @@ class FirnClient {
 
       case 'PART':
         String channelName = parsedMsg.parameters[0];
-        Channel channel = conf.joinedChannels.firstWhere((element) {
+          Channel channel = conf.joinedChannels.firstWhere((element) {
           if (element.name == channelName) {
             return true;
           }
