@@ -82,6 +82,9 @@ class FirnClient {
       conf.hasConnectedToServer = true;
       conf.serverConnectionSocket = socket;
 
+      if (conf.eventController.isClosed == true) {
+        conf.eventController = StreamController<FirnEvent>.broadcast();
+      }
 
       utf8.decoder
           .bind(conf.serverConnectionSocket)
@@ -130,7 +133,18 @@ class FirnClient {
       throw Exception('IRCClient error: tried to dc when not connected');
     }
 
+
+
+
     sendLine(conf, 'QUIT');
+
+    for (StreamSubscription sub in conf.subscribers) {
+      sub.cancel();
+    }
+
+    conf.joinedChannels.clear();
+    conf.localEventBuffer.clear();
+    conf.eventController.close();
     conf.hasConnectedToServer = false;
     conf.serverConnectionSocket.destroy();
   }
