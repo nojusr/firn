@@ -194,9 +194,9 @@ class FirnClient {
 
     if (args.length > 0) {
       String arguments = args.join(' ');
-      sendLine(conf, 'NOTICE $target \u0001$prefix $message $arguments\u0001');
+      sendLine(conf, 'NOTICE $target :\u0001$prefix $message $arguments\u0001');
     } else {
-      sendLine(conf, 'NOTICE $target \u0001$prefix $message\u0001');
+      sendLine(conf, 'NOTICE $target :\u0001$prefix $message\u0001');
     }
 
   }
@@ -533,18 +533,13 @@ class FirnClient {
     switch(command) {
       case 'PING':
 
-        int timeGiven = int.parse(arguments[0]);
+        int timeGiven = int.parse(arguments[0].replaceAll(".", ""));
         int currentTime = DateTime.now().millisecondsSinceEpoch;
-
-        print(currentTime);
-        print(timeGiven*1000);
-
-        int diff = currentTime-(timeGiven*1000);
-
-        sendCTCPResponse(conf, parsedMsg.prefix.nick, command, 'took $diff ms to respond', []);
+        
+        sendCTCPResponse(conf, parsedMsg.prefix.nick.toLowerCase(), command, "", arguments);
         break;
       case 'VERSION':
-        sendCTCPResponse(conf, parsedMsg.prefix.nick, command, conf.version, []);
+        sendCTCPResponse(conf, parsedMsg.prefix.nick.toLowerCase(), command, conf.version, []);
         break;
 
     }
