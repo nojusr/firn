@@ -190,6 +190,10 @@ class FirnClient {
     sendLine(conf, 'PART $chName');
   }
 
+  void authenticate(FirnConfig conf, String user, String password) {
+    sendLine(conf, 'AUTH $user $password');
+  }
+
   void sendCTCPResponse(FirnConfig conf, String target, String prefix, String message, List<String> args) {
 
     if (args.length > 0) {
@@ -276,11 +280,20 @@ class FirnClient {
         break;
 
       case 'NOTICE':
-        conf.eventController.add(new MessageRecievedEvent(
-          message: parsedMsg,
-          eventName: 'noticeRecieved',
-          config: conf,
-        ));
+        if (parsedMsg.line.contains("You are now logged in as ")) {
+          conf.eventController.add(new MessageRecievedEvent(
+            message: parsedMsg,
+            eventName: 'authenticated',
+            config: conf,
+          ));
+        } else {
+          conf.eventController.add(new MessageRecievedEvent(
+            message: parsedMsg,
+            eventName: 'noticeRecieved',
+            config: conf,
+          ));
+        }
+
         break;
 
       case 'NICK': /// nickname change
@@ -360,7 +373,7 @@ class FirnClient {
         connChannel.topic = "";
 
         break;
-      
+
       case '332': /// channel and topic recieved
 
         Channel connChannel;
@@ -445,7 +458,7 @@ class FirnClient {
           }
           return false;
         });
-        
+
         if (channel.connectedUsers == null) {
           break;
         }
@@ -480,6 +493,11 @@ class FirnClient {
         break;
 
       case '353': /// NAMES
+
+        if (conf.joinedChannels.isEmpty) {
+          break;
+        }
+
         String nameStr = parsedMsg.parameters[3];
         List<String> names = nameStr.split(' ');
 
@@ -508,6 +526,12 @@ class FirnClient {
           config: conf,
         ));
 
+        break;
+      case '477':
+        conf.eventController.add(ChannelEvent(
+          eventName: 'authRequired',
+          config: conf,
+        ));
         break;
     }
   }
