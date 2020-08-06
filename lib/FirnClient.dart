@@ -193,7 +193,7 @@ class FirnClient {
   void authenticate(FirnConfig conf, String user, String password) {
     sendLine(conf, 'AUTH $user $password');
   }
-  
+
   void sendCTCPResponse(FirnConfig conf, String target, String prefix, String message, List<String> args) {
 
     if (args.length > 0) {
@@ -493,6 +493,11 @@ class FirnClient {
         break;
 
       case '353': /// NAMES
+
+        if (conf.joinedChannels.isEmpty) {
+          break;
+        }
+
         String nameStr = parsedMsg.parameters[3];
         List<String> names = nameStr.split(' ');
 
