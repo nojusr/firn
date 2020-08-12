@@ -6,6 +6,9 @@ class Channel {
     this.name,
     this.topic,
     this.modes,
+    this.connectedUsers,
+    this.currentlyConnected,
+    this.autojoin,
   });
 
   /// the name of the channel
@@ -26,6 +29,6 @@ class Channel {
   bool autojoin = false;
 
   /// a list that holds all of the connected users' nicknames
-  List<String> connectedUsers;
+  List<String> connectedUsers = List<String>();
 
 }

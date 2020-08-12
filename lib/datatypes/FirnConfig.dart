@@ -15,6 +15,10 @@ class FirnConfig {
   /// see when you post something on IRC
   String nickname;
 
+  /// the password of the config (connection), this is used in order to authenticate
+  /// the user with the server
+  String password;
+
   /// the version of the client, sent upon recieving a `CTCP VERSION` request
   /// or a `VERSION` request from the server
   String version = "Firn IRC Library v0.0.2 (client version unset)";
@@ -62,4 +66,13 @@ class FirnConfig {
   /// bool to indicate connection status
   bool hasConnectedToServer = false;
 
+  /// list of strings that contain all server capabilities
+  List<String> serverListCapabilities = List<String>();
+
+  /// list of strings that contain all explicitly confirmed
+  /// server capabilities
+  List<String> serverAckCapabilities = List<String>();
+
+  /// bool to tell client if SASL is to be used
+  bool shouldUseSASL = false;
 }

@@ -24,6 +24,14 @@ class FirnClient {
 
   bool printDebug = false;
 
+  List<String> supportedCapabilities = [
+    "sasl",
+  ];
+
+  List<String> supportedSASLMechanisms = [
+    "PLAIN",
+  ];
+
   void addConfig(FirnConfig conf) {
     configs.add(conf);
     if (conf.autoConnect == true) {
@@ -66,7 +74,6 @@ class FirnClient {
   }
 
   void connectToServers() {
-
     for (FirnConfig conf in configs) {
       connectToServer(conf);
     }
@@ -92,6 +99,8 @@ class FirnClient {
           .listen((event) {
         rawMessageHandler(conf, event);
       });
+
+      sendLine(conf, "CAP LS 302");
 
       sendNickAndUser(conf);
 
@@ -279,6 +288,44 @@ class FirnClient {
         sendNick(conf);
         break;
 
+
+      case 'CAP':
+        CAPMessageHandler(conf, parsedMsg);
+        break;
+
+      case 'AUTHENTICATE':
+        if (parsedMsg.parameters[0] == "+") {
+          sendSASLPassword(conf, parsedMsg);
+        }
+        break;
+
+      case '900': // RPL_LOGGEDIN
+        conf.eventController.add(new MessageRecievedEvent(
+          message: parsedMsg,
+          eventName: 'authenticated',
+          config: conf,
+        ));
+        break;
+
+      case '903':
+        sendLine(conf, "CAP END");
+        conf.eventController.add(new MessageRecievedEvent(
+          message: parsedMsg,
+          eventName: 'SASLSuccess',
+          config: conf,
+        ));
+        break;
+
+      case '904':
+      case '905':
+        sendLine(conf, "CAP END");
+        conf.eventController.add(new MessageRecievedEvent(
+          message: parsedMsg,
+          eventName: 'SASLFailure',
+          config: conf,
+        ));
+        break;
+
       case 'NOTICE':
         if (parsedMsg.line.contains("You are now logged in as ")) {
           conf.eventController.add(new MessageRecievedEvent(
@@ -356,16 +403,14 @@ class FirnClient {
           }
           return false;
         }, orElse: () {
-          conf.joinedChannels.add(Channel(
+          Channel tmpChan = Channel(
             name: parsedMsg.parameters[1],
-          ));
+            topic: "no topic set",
+            connectedUsers: [],
+          );
 
-          connChannel = conf.joinedChannels.firstWhere((element){
-            if (element.name == parsedMsg.parameters[1]) {
-              return true;
-            }
-            return false;
-          });
+          conf.joinedChannels.add(tmpChan);
+          return tmpChan;
 
         });
 
@@ -384,17 +429,14 @@ class FirnClient {
           }
           return false;
         }, orElse: () {
-          conf.joinedChannels.add(Channel(
+          Channel tmpChan = Channel(
             name: parsedMsg.parameters[1],
             topic: "no topic set",
-          ));
+            connectedUsers: [],
+          );
 
-          connChannel = conf.joinedChannels.firstWhere((element){
-            if (element.name == parsedMsg.parameters[1]) {
-              return true;
-            }
-            return false;
-          });
+          conf.joinedChannels.add(tmpChan);
+          return tmpChan;
 
         });
 
@@ -410,16 +452,23 @@ class FirnClient {
       case 'JOIN':
         String channelName = parsedMsg.parameters[0];
 
+
+
         Channel channel = conf.joinedChannels.firstWhere((element) {
           if (element.name == channelName) {
             return true;
           }
           return false;
         }, orElse: () {
-          conf.joinedChannels.add(Channel(
+
+          Channel tmpChan = Channel(
             name: channelName,
             topic: "no topic set",
-          ));
+            connectedUsers: [],
+          );
+
+          conf.joinedChannels.add(tmpChan);
+          return tmpChan;
 
         });
 
@@ -432,6 +481,9 @@ class FirnClient {
 
         }
 
+        if (channel == null) {
+          break;
+        }
 
         if (channel.connectedUsers == null) {
           channel.connectedUsers = List<String>();
@@ -458,6 +510,10 @@ class FirnClient {
           }
           return false;
         });
+
+        if (channel == null) {
+          break;
+        }
 
         if (channel.connectedUsers == null) {
           break;
@@ -527,9 +583,41 @@ class FirnClient {
         ));
 
         break;
+
       case '477':
         conf.eventController.add(ChannelEvent(
           eventName: 'authRequired',
+          config: conf,
+        ));
+        break;
+
+      case '251':
+      case '252':
+      case '253':
+      case '254':
+      case '255':
+      case '265':
+      case '266':
+        conf.eventController.add(new MessageRecievedEvent(
+          message: parsedMsg,
+          eventName: 'serverInfoRecieved',
+          config: conf,
+        ));
+        break;
+
+      case '375':
+        conf.eventController.add(new MessageRecievedEvent(
+          message: parsedMsg,
+          eventName: 'MOTDMsgRecieved',
+          config: conf,
+        ));
+        break;
+
+
+      default:
+        conf.eventController.add(new MessageRecievedEvent(
+          message: parsedMsg,
+          eventName: 'privMsgRecieved',
           config: conf,
         ));
         break;
@@ -557,16 +645,80 @@ class FirnClient {
     switch(command) {
       case 'PING':
 
-        int timeGiven = int.parse(arguments[0].replaceAll(".", ""));
-        int currentTime = DateTime.now().millisecondsSinceEpoch;
-        
+
+        //sendCTCPResponse(conf, parsedMsg.prefix.nick, command, "", arguments);
         sendCTCPResponse(conf, parsedMsg.prefix.nick.toLowerCase(), command, "", arguments);
         break;
       case 'VERSION':
+        //sendCTCPResponse(conf, parsedMsg.prefix.nick, command, "", arguments);
         sendCTCPResponse(conf, parsedMsg.prefix.nick.toLowerCase(), command, conf.version, []);
         break;
 
     }
-
   }
+
+
+  /// function to handle capability (CAP) negotiation.
+  /// placed in a seperate function in order to be able to be moved out of
+  /// FirnClient at a later date if needed.
+  void CAPMessageHandler(FirnConfig conf, Message parsedMsg) {
+    if (parsedMsg.parameters[0] == "*") {
+      if (parsedMsg.parameters[1] == "LS") {
+        String capStr = parsedMsg.parameters[2];
+        List<String> capList = capStr.split(" ");
+        conf.serverListCapabilities.addAll(capList);
+
+
+        /// bool used to determine if capability negotiation should continue or not
+        bool capReqSent = false;
+
+        for(String capability in conf.serverListCapabilities) {
+          if (capability.startsWith("sasl") && conf.shouldUseSASL == true) {
+            sendLine(conf, "CAP REQ :sasl");
+            capReqSent = true;
+          }
+        }
+
+        /// no capability requests have been sent, ending capability negotiation
+        if (capReqSent == false) {
+          sendLine(conf, "CAP END");
+        }
+
+      } else if (parsedMsg.parameters[1] == "ACK") {
+        conf.serverAckCapabilities.add(parsedMsg.parameters[2]);
+        if (parsedMsg.parameters[2].startsWith("sasl")) {
+          initiateSASL(conf);
+        } else {
+          sendLine(conf, "CAP END");
+        }
+      }
+    }
+  }
+
+  /// function to initiate SASL authentication.
+  void initiateSASL(FirnConfig conf) {
+    if (conf.password == null || conf.password == ""){
+      throw Exception('IRCClient error: tried to authenticate without setting password in config');
+    }
+    sendLine(conf, "AUTHENTICATE PLAIN");
+  }
+
+
+  /// function to handle SASL authentication.
+  /// placed in a seperate function in order to be able to be moved out of
+  /// FirnClient at a later date if needed.
+  void sendSASLPassword(FirnConfig conf, Message parsedMsg) {
+    if (conf.password == null || conf.password == ""){
+      throw Exception('IRCClient error: tried to authenticate without setting password in config');
+    }
+
+
+    String authString = "${conf.nickname}\x00${conf.nickname}\x00${conf.password}";
+    authString = base64.encode(utf8.encode(authString));
+
+    sendLine(conf, "AUTHENTICATE ${authString}");
+    sendLine(conf, "AUTHENTICATE +");
+  }
+
+
 }
