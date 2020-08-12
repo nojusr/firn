@@ -606,6 +606,8 @@ class FirnClient {
         break;
 
       case '375':
+      case '372':
+      case '376':
         conf.eventController.add(new MessageRecievedEvent(
           message: parsedMsg,
           eventName: 'MOTDMsgRecieved',
@@ -613,14 +615,14 @@ class FirnClient {
         ));
         break;
 
-
+      /*
       default:
         conf.eventController.add(new MessageRecievedEvent(
           message: parsedMsg,
           eventName: 'privMsgRecieved',
           config: conf,
         ));
-        break;
+        break;*/
     }
   }
 
@@ -628,7 +630,7 @@ class FirnClient {
   void CTCPMessageHandler(FirnConfig conf, Message parsedMsg, String parsedNotice) {
 
 
-    // parse and get command
+    /// parse and get CTCP command
     String command = parsedNotice.split(' ')[0];
     List<String> arguments = parsedNotice.split(' ').sublist(1);
 
