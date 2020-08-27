@@ -83,7 +83,8 @@ class FirnClient {
 
   void connectToServer(FirnConfig conf) {
 
-    // used in the
+    // used in the same way regardless of if TLS is enabled or not
+    // so it's put into a callback variable
     Function(Socket) onConnect = (socket) {
       print('conneted to ${conf.server}, port ${conf.port}');
       conf.hasConnectedToServer = true;
@@ -134,16 +135,18 @@ class FirnClient {
 
 
 
-
-
-
-
     if (conf.server == null || conf.server == "") {
       throw Exception('IRCClient error: server not set');
     }
 
     if (conf.shouldUseTLS == true) {
-      SecureSocket.connect(conf.server, conf.port).then(onConnect);
+      SecureSocket.connect(
+        conf.server,
+        conf.port,
+        onBadCertificate: (cert){
+          return conf.allowUnsignedTLS;
+        },
+      ).then(onConnect);
     } else {
       Socket.connect(conf.server, conf.port).then(onConnect);
     }
