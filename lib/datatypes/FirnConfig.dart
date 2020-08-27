@@ -75,4 +75,9 @@ class FirnConfig {
 
   /// bool to tell client if SASL is to be used
   bool shouldUseSASL = false;
+
+  /// bool to tell client if it should try to use SSL/TLS
+  /// at the time of writing, i'm thinking that the client should 'prefer' SSL
+  /// and try to connect via plaintext if tls isn't supported.
+  bool shouldUseTLS = false;
 }

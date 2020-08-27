@@ -44,7 +44,9 @@ class FirnClient {
     for (StreamSubscription sub in conf.subscribers) {
       sub.cancel();
     }
-    disconnectFromServer(conf);
+    if (conf.hasConnectedToServer == true) {
+      disconnectFromServer(conf);
+    }
     configs.remove(conf);
   }
 
@@ -80,11 +82,9 @@ class FirnClient {
   }
 
   void connectToServer(FirnConfig conf) {
-    if (conf.server == null || conf.server == "") {
-      throw Exception('IRCClient error: server not set');
-    }
 
-    Socket.connect(conf.server, conf.port).then((socket) {
+    // used in the
+    Function(Socket) onConnect = (socket) {
       print('conneted to ${conf.server}, port ${conf.port}');
       conf.hasConnectedToServer = true;
       conf.serverConnectionSocket = socket;
@@ -130,7 +130,25 @@ class FirnClient {
         config: conf,
       ));
 
-    });
+    };
+
+
+
+
+
+
+
+    if (conf.server == null || conf.server == "") {
+      throw Exception('IRCClient error: server not set');
+    }
+
+    if (conf.shouldUseTLS == true) {
+      SecureSocket.connect(conf.server, conf.port).then(onConnect);
+    } else {
+      Socket.connect(conf.server, conf.port).then(onConnect);
+    }
+
+
   }
 
   void disconnectFromServer(FirnConfig conf) {
@@ -162,7 +180,7 @@ class FirnClient {
     if (printDebug) {
       print('sending raw message: $input');
     }
-    conf.serverConnectionSocket.write('$input \r\n');
+    conf.serverConnectionSocket.write('$input\r\n');
   }
 
   void sendPrivMsg(FirnConfig conf, String target, String input) {
