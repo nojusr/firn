@@ -239,7 +239,17 @@ class FirnClient {
   }
 
   void sendCTCPAction(FirnConfig conf, String target, String message) {
-
+    sendLine(conf, 'PRIVMSG $target :\u0001ACTION $message\u0001');
+    conf.eventController.add(MessageRecievedEvent(
+      eventName: 'ActionSent',
+      message: Message(
+        parameters: [target, message],
+        prefix: IRCPrefix(
+          nick: conf.nickname,
+        ),
+      ),
+      config: conf,
+    ));
   }
 
   void rawMessageHandler(FirnConfig conf, String input) {
