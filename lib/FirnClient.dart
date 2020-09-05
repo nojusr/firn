@@ -86,7 +86,10 @@ class FirnClient {
     // used in the same way regardless of if TLS is enabled or not
     // so it's put into a callback variable
     Function(Socket) onConnect = (socket) {
-      print('conneted to ${conf.server}, port ${conf.port}');
+      if (printDebug) {
+        print('conneted to ${conf.server}, port ${conf.port}');
+      }
+
       conf.hasConnectedToServer = true;
       conf.serverConnectionSocket = socket;
 
@@ -636,14 +639,14 @@ class FirnClient {
         ));
         break;
 
-      /*
+
       default:
         conf.eventController.add(new MessageRecievedEvent(
           message: parsedMsg,
-          eventName: 'privMsgRecieved',
+          eventName: 'UnknownMsgRecieved',
           config: conf,
         ));
-        break;*/
+        break;
     }
   }
 
@@ -667,8 +670,6 @@ class FirnClient {
 
     switch(command) {
       case 'PING':
-
-
         //sendCTCPResponse(conf, parsedMsg.prefix.nick, command, "", arguments);
         sendCTCPResponse(conf, parsedMsg.prefix.nick.toLowerCase(), command, "", arguments);
         break;
@@ -676,7 +677,51 @@ class FirnClient {
         //sendCTCPResponse(conf, parsedMsg.prefix.nick, command, "", arguments);
         sendCTCPResponse(conf, parsedMsg.prefix.nick.toLowerCase(), command, conf.version, []);
         break;
+      case 'ACTION':
+        parsedMsg = Message(
+          line: parsedMsg.line,
+          prefix: parsedMsg.prefix,
+          tags: parsedMsg.tags,
+          parameters: [parsedMsg.parameters[0], arguments.join(" ")],
+          command: 'ACTION',
+        );
 
+        if (printDebug == true) {
+          String dbgOutput = 'IRC Action Message: ${parsedMsg.line}';
+          dbgOutput += '\nCommand: ${parsedMsg.command}';
+          dbgOutput += '\nPrefix:';
+
+          if (parsedMsg.prefix != null) {
+            if (parsedMsg.prefix.host != null) {
+              dbgOutput += '|h: ${parsedMsg.prefix.host}';
+            }
+            if (parsedMsg.prefix.nick != null) {
+              dbgOutput += '|n: ${parsedMsg.prefix.nick}';
+            }
+            if (parsedMsg.prefix.user != null) {
+              dbgOutput += '|u: ${parsedMsg.prefix.user}';
+            }
+          }
+          dbgOutput += '\nParameters: ';
+          for (int i = 0; i < parsedMsg.parameters.length; i++) {
+            dbgOutput += '${parsedMsg.parameters[i]} ||';
+          }
+
+          dbgOutput += '\nTags:';
+          parsedMsg.tags.forEach((key, value) {
+            dbgOutput += '$key=$value;';
+          });
+          dbgOutput += '\n-------------------------';
+          print(dbgOutput);
+        }
+
+
+        conf.eventController.add(new MessageRecievedEvent(
+          message: parsedMsg,
+          eventName: 'ActionRecieved',
+          config: conf,
+        ));
+        break;
     }
   }
 
