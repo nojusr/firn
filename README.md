@@ -3,7 +3,8 @@
 The chillest IRC library.
 
 # NOTICE
-This library is still in heavy development, things are very likely to change in the future.
+This library is still in moderate development, things are very likely to change in the future.
+
 
 ## What is firn?
 Firn is modern IRC v3 library written in pure dart. Used in Igloo IRC for android.

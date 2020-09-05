@@ -238,6 +238,9 @@ class FirnClient {
 
   }
 
+  void sendCTCPAction(FirnConfig conf, String target, String message) {
+
+  }
 
   void rawMessageHandler(FirnConfig conf, String input) {
 
