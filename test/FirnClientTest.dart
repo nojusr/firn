@@ -58,7 +58,7 @@ void main() {
     });
 
     TestClient.globalEventController.stream.listen((event) {
-      print("testconf2 events recieved: ${event.config.localEventBuffer.length}");
+      print("testconf2 events recieved: ${event.config.configEventBuffer.length}");
       print("time of event: ${event.timestamp.toIso8601String()}");
     });
 

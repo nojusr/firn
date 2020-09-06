@@ -34,6 +34,8 @@ class FirnClient {
 
   void addConfig(FirnConfig conf) {
     configs.add(conf);
+
+
     if (conf.autoConnect == true) {
       connectToServer(conf);
     }
@@ -81,13 +83,13 @@ class FirnClient {
     }
   }
 
-  void connectToServer(FirnConfig conf) {
+  void connectToServer(FirnConfig conf) async {
 
     // used in the same way regardless of if TLS is enabled or not
     // so it's put into a callback variable
     Function(Socket) onConnect = (socket) {
       if (printDebug) {
-        print('conneted to ${conf.server}, port ${conf.port}');
+        print('connecting to ${conf.server}, port ${conf.port}');
       }
 
       conf.hasConnectedToServer = true;
@@ -96,6 +98,15 @@ class FirnClient {
       if (conf.eventController.isClosed == true) {
         conf.eventController = StreamController<FirnEvent>.broadcast();
       }
+
+      // add server channel
+      conf.joinedChannels.add(Channel(
+        name: conf.server,
+        connectedUsers: [],
+        topic: "",
+        modes: "",
+        config: conf,
+      ));
 
       utf8.decoder
           .bind(conf.serverConnectionSocket)
@@ -118,10 +129,10 @@ class FirnClient {
 
       if (conf.shouldBufferEvents == true) {
         StreamSubscription bufferSub = conf.eventController.stream.listen((event) {
-          if (conf.localEventBuffer.length > conf.localEventBufferSize) {
-            conf.localEventBuffer.removeLast();
+          if (conf.configEventBuffer.length > conf.configEventBufferSize) {
+            conf.configEventBuffer.removeLast();
           }
-          conf.localEventBuffer.insert(0, event);
+          conf.configEventBuffer.insert(0, event);
         });
         conf.subscribers.add(bufferSub);
       }
@@ -176,7 +187,7 @@ class FirnClient {
     }
 
     conf.joinedChannels.clear();
-    conf.localEventBuffer.clear();
+    conf.configEventBuffer.clear();
     conf.eventController.close();
     conf.hasConnectedToServer = false;
     conf.serverConnectionSocket.destroy();
@@ -255,6 +266,7 @@ class FirnClient {
   void rawMessageHandler(FirnConfig conf, String input) {
 
     Message parsedMsg = IRCMessageParser.parseRawMessage(input);
+
 
     if (printDebug == true) {
       String dbgOutput = 'IRC Message: ${parsedMsg.line}';
@@ -415,6 +427,46 @@ class FirnClient {
           CTCPMessageHandler(conf, parsedMsg, parsedNotice);
           break;
         }
+
+        if (conf.nickname == parsedMsg.parameters[0]) { // check to see if DM
+          String DMSender =  parsedMsg.prefix.nick;
+
+          Channel DMChannel;
+
+          DMChannel = conf.joinedChannels.firstWhere((element) {
+            if (element.name == DMSender) {
+              return true;
+            }
+            return false;
+          }, orElse: () {
+            Channel tmpChan = Channel(
+              name: DMSender,
+              topic: "Private Messaging",
+              connectedUsers: [],
+              config: conf,
+            );
+
+
+
+            conf.joinedChannels.add(tmpChan);
+
+            // add an event to notify that a new private message
+            // channel has opened up
+            conf.eventController.add(new FirnEvent(
+              eventName: 'newPrivateMessage',
+              config: conf,
+            ));
+
+            return tmpChan;
+          });
+
+
+          print("added DM channel: ${DMChannel.name}");
+          // handle this after you've added event buffers per channel
+
+        }
+
+
         conf.eventController.add(new MessageRecievedEvent(
           message: parsedMsg,
           eventName: 'privMsgRecieved',
@@ -444,6 +496,7 @@ class FirnClient {
             name: parsedMsg.parameters[1],
             topic: "no topic set",
             connectedUsers: [],
+            config: conf,
           );
 
           conf.joinedChannels.add(tmpChan);
@@ -470,6 +523,7 @@ class FirnClient {
             name: parsedMsg.parameters[1],
             topic: "no topic set",
             connectedUsers: [],
+            config: conf,
           );
 
           conf.joinedChannels.add(tmpChan);
@@ -502,6 +556,7 @@ class FirnClient {
             name: channelName,
             topic: "no topic set",
             connectedUsers: [],
+            config: conf,
           );
 
           conf.joinedChannels.add(tmpChan);
@@ -698,35 +753,6 @@ class FirnClient {
           parameters: [parsedMsg.parameters[0], arguments.join(" ")],
           command: 'ACTION',
         );
-
-        if (printDebug == true) {
-          String dbgOutput = 'IRC Action Message: ${parsedMsg.line}';
-          dbgOutput += '\nCommand: ${parsedMsg.command}';
-          dbgOutput += '\nPrefix:';
-
-          if (parsedMsg.prefix != null) {
-            if (parsedMsg.prefix.host != null) {
-              dbgOutput += '|h: ${parsedMsg.prefix.host}';
-            }
-            if (parsedMsg.prefix.nick != null) {
-              dbgOutput += '|n: ${parsedMsg.prefix.nick}';
-            }
-            if (parsedMsg.prefix.user != null) {
-              dbgOutput += '|u: ${parsedMsg.prefix.user}';
-            }
-          }
-          dbgOutput += '\nParameters: ';
-          for (int i = 0; i < parsedMsg.parameters.length; i++) {
-            dbgOutput += '${parsedMsg.parameters[i]} ||';
-          }
-
-          dbgOutput += '\nTags:';
-          parsedMsg.tags.forEach((key, value) {
-            dbgOutput += '$key=$value;';
-          });
-          dbgOutput += '\n-------------------------';
-          print(dbgOutput);
-        }
 
 
         conf.eventController.add(new MessageRecievedEvent(
