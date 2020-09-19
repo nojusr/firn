@@ -18,6 +18,12 @@ import 'package:firn/datatypes/FirnConfig.dart';
 
 class FirnClient {
 
+
+  FirnClient({
+    this.configs,
+    this.printDebug,
+  });
+
   List<FirnConfig> configs = List<FirnConfig>();
 
   StreamController<FirnEvent> globalEventController = StreamController<FirnEvent>.broadcast();
@@ -99,14 +105,29 @@ class FirnClient {
         conf.eventController = StreamController<FirnEvent>.broadcast();
       }
 
-      // add server channel
-      conf.joinedChannels.add(Channel(
-        name: conf.server,
-        connectedUsers: [],
-        topic: "",
-        modes: "",
-        config: conf,
-      ));
+      // add server channel if it doesn't exist
+      bool hasServerChannel = false;
+
+      for (Channel chan in conf.joinedChannels) {
+        if (chan.name == conf.server) {
+          hasServerChannel = true;
+          continue;
+        }
+      }
+
+      if (hasServerChannel == false) {
+        conf.joinedChannels.add(Channel(
+          name: conf.server,
+          connectedUsers: [],
+          topic: "",
+          modes: "",
+          config: conf,
+          autojoin: false,
+          currentlyConnected: true,
+        ));
+      }
+
+
 
       utf8.decoder
           .bind(conf.serverConnectionSocket)
@@ -476,6 +497,14 @@ class FirnClient {
 
       case '376': /// motd finish, ready to join
         conf.canJoinChannels = true;
+
+        for (Channel chan in conf.joinedChannels) {
+          if (chan.currentlyConnected == false && chan.autojoin == true) {
+            joinChannel(conf, chan.name);
+          }
+        }
+
+
         conf.eventController.add(new FirnEvent(
           eventName: 'ready',
           config: conf,
@@ -498,12 +527,12 @@ class FirnClient {
             connectedUsers: [],
             config: conf,
           );
-
           conf.joinedChannels.add(tmpChan);
           return tmpChan;
 
         });
 
+        connChannel.currentlyConnected = true;
 
         connChannel.topic = "";
 
@@ -531,6 +560,8 @@ class FirnClient {
 
         });
 
+        connChannel.currentlyConnected = true;
+
         connChannel.topic = parsedMsg.parameters[2];
 
         conf.eventController.add(ChannelEvent(
@@ -542,8 +573,6 @@ class FirnClient {
 
       case 'JOIN':
         String channelName = parsedMsg.parameters[0];
-
-
 
         Channel channel = conf.joinedChannels.firstWhere((element) {
           if (element.name == channelName) {
@@ -565,6 +594,9 @@ class FirnClient {
         });
 
         if (conf.nickname == parsedMsg.prefix.nick) {
+
+          channel.currentlyConnected = true;
+
           conf.eventController.add(ChannelEvent(
             eventName: 'channelJoined',
             channel: channel,

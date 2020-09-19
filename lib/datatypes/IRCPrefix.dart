@@ -5,7 +5,7 @@ class IRCPrefix {
 
   IRCPrefix({
     this.raw,
-    this.isServer,
+    this.isServer = false,
     this.nick,
     this.user,
     this.host,
