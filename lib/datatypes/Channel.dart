@@ -20,41 +20,70 @@ class Channel {
     this.autojoin,
     this.config,
     this.channelEventBufferSize = 100,
+    this.isDM,
   }){
     if (config.shouldBufferEvents == true){
       StreamSubscription chanSub = config.eventController.stream.listen((event) {
-
-        bool shouldAddEvent = false;
-
-        if (event is MessageRecievedEvent){
-          if (event.message.parameters[0] == this.name) {
-            shouldAddEvent = true;
-          } else if (event.message.parameters[0] == config.nickname && event.message.prefix.nick == name) {
-            shouldAddEvent = true;
-          } else if (event.message.prefix.isServer && config.server == name) {
-            shouldAddEvent = true;
-          }
-        } else if (event is ChannelEvent && event.channel.name == name) {
-          shouldAddEvent = true;
-        } else if (event is NicknameChangedEvent) {
-          shouldAddEvent = true;
-          if (event.from == name) {
-            name = event.to;
-          }
-        }
-
-        if (shouldAddEvent) {
-          if (channelEventBuffer.length > channelEventBufferSize) {
-            channelEventBuffer.removeLast();
-          }
-          channelEventBuffer.insert(0, event);
-        }
+        channelEventListener(event);
       });
       config.subscribers.add(chanSub);
+      channelStreamSub = chanSub;
+    }
+  }
+
+  /// a function used to reset the config's event controller stream
+  /// which may get replaced upon a reconnect
+  void resetStream() {
+
+    // cleanup
+    if (channelStreamSub != null) {
+      channelStreamSub.cancel();
+    }
+    config.subscribers.remove(channelStreamSub);
+
+    // resubscription
+    channelStreamSub = config.eventController.stream.listen((event) {
+      channelEventListener(event);
+    });
+
+  }
+
+  void channelEventListener(FirnEvent event) {
+    bool shouldAddEvent = false;
+
+    if (event is MessageRecievedEvent){
+      if (event.message.parameters[0] == this.name) {
+        shouldAddEvent = true;
+      } else if (event.message.parameters[0] == config.nickname && event.message.prefix.nick == name) {
+        shouldAddEvent = true;
+      } else if (event.message.prefix.isServer && config.server == name) {
+        shouldAddEvent = true;
+      }
+    } else if (event is ChannelEvent && event.channel.name == name) {
+      shouldAddEvent = true;
+    } else if (event is NicknameChangedEvent) {
+      shouldAddEvent = true;
+      if (event.from == name) {
+        name = event.to;
+      }
+    }
+
+    if (shouldAddEvent) {
+      if (channelEventBuffer.length > channelEventBufferSize) {
+        channelEventBuffer.removeLast();
+      }
+      channelEventBuffer.insert(0, event);
     }
   }
 
 
+  /// a local variable used to hold the stream subscription of the channel's
+  /// parent config
+  StreamSubscription channelStreamSub;
+
+  /// a bool used to determine if the channel is used to directly communicate
+  /// with an used
+  bool isDM = false;
 
   /// the [FirnConfig] that this channel belongs to
   FirnConfig config;

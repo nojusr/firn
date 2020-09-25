@@ -166,6 +166,11 @@ class FirnClient {
         config: conf,
       ));
 
+
+      for (Channel chan in conf.joinedChannels) {
+        chan.resetStream();
+      }
+
     };
 
 
@@ -207,7 +212,19 @@ class FirnClient {
       sub.cancel();
     }
 
-    conf.joinedChannels.clear();
+
+    for (Channel chan in conf.joinedChannels) {
+
+      if (chan.isDM == true) {
+        conf.joinedChannels.remove(chan);
+        continue;
+      }
+
+      chan.currentlyConnected = false;
+      chan.connectedUsers.clear();
+      chan.channelEventBuffer.clear();
+    }
+
     conf.configEventBuffer.clear();
     conf.eventController.close();
     conf.hasConnectedToServer = false;
@@ -464,7 +481,9 @@ class FirnClient {
               name: DMSender,
               topic: "Private Messaging",
               connectedUsers: [],
+              currentlyConnected: true,
               config: conf,
+              isDM: true,
             );
 
 
@@ -528,9 +547,11 @@ class FirnClient {
             config: conf,
           );
           conf.joinedChannels.add(tmpChan);
+          tmpChan.resetStream();
           return tmpChan;
 
         });
+
 
         connChannel.currentlyConnected = true;
 
@@ -556,9 +577,12 @@ class FirnClient {
           );
 
           conf.joinedChannels.add(tmpChan);
+          tmpChan.resetStream();
           return tmpChan;
 
         });
+
+
 
         connChannel.currentlyConnected = true;
 
@@ -587,7 +611,7 @@ class FirnClient {
             connectedUsers: [],
             config: conf,
           );
-
+          tmpChan.resetStream();
           conf.joinedChannels.add(tmpChan);
           return tmpChan;
 
